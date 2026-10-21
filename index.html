@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Task Status Dashboard</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --primary:#4f46e5; --primary-2:#7c3aed;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626; --blue:#2563eb;
+    --text:#1f2937; --muted:#6b7280; --border:#e5e7eb; --sidebar:#111827;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif}
+  body{background:var(--bg);color:var(--text)}
+  .layout{display:flex;min-height:100vh}
+
+  .sidebar{width:230px;background:var(--sidebar);color:#e5e7eb;padding:20px 14px;
+           position:fixed;top:0;bottom:0;left:0;transition:transform .3s;z-index:100}
+  .sidebar h2{font-size:18px;margin-bottom:24px;color:#fff;display:flex;align-items:center;gap:8px}
+  .sidebar a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:8px;
+             color:#9ca3af;text-decoration:none;margin-bottom:6px;font-size:14px}
+  .sidebar a:hover,.sidebar a.active{background:rgba(255,255,255,.08);color:#fff}
+  .menu-btn{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--primary);
+            color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:16px;cursor:pointer}
+
+  .main{margin-left:230px;flex:1;padding:24px;transition:margin .3s}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+  .topbar h1{font-size:22px}
+  .search{padding:9px 14px;border:1px solid var(--border);border-radius:8px;width:250px;max-width:100%}
+
+  /* Person chips */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{padding:8px 18px;border-radius:20px;border:1px solid var(--border);background:#fff;
+        cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.2s}
+  .chip:hover{border-color:var(--primary);color:var(--primary)}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+  /* Person summary cards */
+  .person-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:22px}
+  .pcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .pcard h4{font-size:15px;margin-bottom:4px}
+  .pcard .role{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .pcard .counts{display:flex;gap:6px;flex-wrap:wrap}
+  .pcard .cnt{font-size:11px;padding:4px 10px;border-radius:14px;font-weight:700}
+  .c-done{background:#dcfce7;color:var(--green)} .c-prog{background:#dbeafe;color:var(--blue)}
+  .c-pend{background:#fef3c7;color:var(--amber)} .c-stop{background:#fee2e2;color:var(--red)}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .panel h3{font-size:15px;margin-bottom:16px}
+  .table-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .table-head h3{margin-bottom:0}
+  .total-badge{font-size:12px;background:#eef2ff;color:var(--primary);padding:4px 12px;border-radius:14px;font-weight:700}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;background:#fafafa;position:sticky;top:0}
+  tr:hover td{background:#f9fafb}
+  .person-tag{display:inline-block;font-size:11px;padding:3px 10px;border-radius:14px;font-weight:700;color:#fff;white-space:nowrap}
+  .p-mathew{background:#0ea5e9}.p-koventhan{background:#8b5cf6}.p-karthi{background:#f59e0b}.p-sarojini{background:#ec4899}
+  .status{padding:4px 10px;border-radius:14px;font-size:11px;font-weight:700;white-space:nowrap;display:inline-block}
+  .s-done{background:#dcfce7;color:var(--green)} .s-prog{background:#dbeafe;color:var(--blue)}
+  .s-pend{background:#fef3c7;color:var(--amber)} .s-stop{background:#fee2e2;color:var(--red)}
+  .tbl-wrap{overflow-x:auto;max-height:600px;overflow-y:auto}
+
+  @media(max-width:768px){
+    .menu-btn{display:block}
+    .sidebar{transform:translateX(-100%)}
+    .sidebar.open{transform:translateX(0)}
+    .main{margin-left:0;padding:70px 14px 20px}
+    .search{width:100%}
+    .topbar{flex-direction:column;align-items:stretch}
+    th,td{padding:8px 8px;font-size:12px}
+  }
+</style>
+<base target="_blank">
+</head>
+<body>
+<button class="menu-btn" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+<div class="layout">
+  <nav class="sidebar">
+    <h2>📊 Team Dashboard</h2>
+    <a href="#" class="active">🏠 Overview</a>
+    <a href="#tasks">✅ Task Status</a>
+    <a href="#people">👥 By Person</a>
+    <a href="#">📈 Reports</a>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <h1>Task List Status — Every Individual</h1>
+      <input class="search" placeholder="🔍 Search task / person / status..." onkeyup="render(this.value)">
+    </div>
+
+    <!-- Person summary cards -->
+    <section class="person-cards" id="people"></section>
+
+    <!-- Filter chips -->
+    <div class="chips" id="chips"></div>
+
+    <!-- Full task table -->
+    <section class="panel" id="tasks">
+      <div class="table-head">
+        <h3>Complete Task List</h3>
+        <span class="total-badge" id="totalBadge"></span>
+      </div>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Person</th><th>Task / Module</th><th>Category</th><th>Timeline</th><th>Status</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ===== FULL TASK DATA — every individual, every task =====
+const TASKS = [
+  // ---------- MATHEW : IT & Security ----------
+  {person:"Mathew",cat:"IT Security",task:"IT Asset Management & Security — classification, verification, stickers, register",time:"Oct 1–5",status:"In Progress"},
+  {person:"Mathew",cat:"IT Security",task:"Server & NAS Security — Synology setup, permissions, snapshots, version control",time:"Oct 1–7",status:"In Progress"},
+  {person:"Mathew",cat:"IT Security",task:"User Access & Least Privilege — remove obsolete accounts, Access Matrix",time:"Oct 5–9",status:"Pending"},
+  {person:"Mathew",cat:"IT Security",task:"Data Retention & Protection — client data backup, 6-month/1-year retention",time:"Oct 1–15",status:"In Progress"},
+  {person:"Mathew",cat:"IT Security",task:"Network & Firewall Security — Sophos rules, VPN, web filtering, IPS",time:"Oct 3–12",status:"In Progress"},
+  {person:"Mathew",cat:"IT Security",task:"Email Security — domain restrictions, approved-domain access",time:"Oct 7–10",status:"Pending"},
+  {person:"Mathew",cat:"IT Security",task:"Endpoint Security & User System Audit — per-system manual audit",time:"Oct 7–12",status:"Pending"},
+  {person:"Mathew",cat:"IT Security",task:"Firewall Rules Verification — verify per user system, fix gaps",time:"Oct 7–12",status:"Pending"},
+  {person:"Mathew",cat:"Planning",task:"Technical Security Improvement Planning — vendor evaluation, VAPT, DR, CCTV quotes",time:"Oct 10–26",status:"Pending"},
+  {person:"Mathew",cat:"IT Security",task:"Backup, DR & Security Verification — restore tests, DR documentation",time:"Oct 15–26",status:"Pending"},
+  {person:"Mathew",cat:"Operations",task:"IT Operations & Security Monitoring (Daily) — support, monitoring, incidents",time:"Oct 1–31 (Daily)",status:"In Progress"},
+
+  // ---------- KOVENTHAN : CRM Lead / Deal / Task Mgmt ----------
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead Module — creation, listing, details, assignment, status",time:"3–5 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead Creation + required fields",time:"1 Day",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead List & Search — filter and listing",time:"1 Day",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead Assignment to users",time:"1–2 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead Status flow",time:"1 Day",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Lead",task:"Lead Conversion — to customer/deal",time:"1–2 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Activity",task:"Activity / Follow-up Module",time:"3–4 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Activity",task:"Activity Creation — calls, meetings, tasks",time:"1 Day",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Activity",task:"Follow-up Management — scheduling & tracking",time:"1–2 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Activity",task:"Reminder / Notification functionality",time:"1–2 Days",status:"Completed"},
+  {person:"Koventhan",cat:"CRM – Activity",task:"Activity History tracking",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Module — sales pipeline",time:"4–5 Days",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Creation",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Details + customer info",time:"1–2 Days",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Stage — pipeline configuration",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Assignment to sales users",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal Value — amount, probability, revenue",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Won / Lost Deal status",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Deal History — activity & stage log",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Deal",task:"Report — module-wise testing",time:"2–3 Days",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Other",task:"Quotation — fix testing issues",time:"2–3 Days",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Other",task:"Integration of chunks — deploy after UAT",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Other",task:"Chat & Notification functionality",time:"1–2 Days",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Other",task:"User restriction integration — end-to-end testing",time:"1 Day",status:"Project Stopped"},
+  {person:"Koventhan",cat:"CRM – Other",task:"UAT / Final Testing — test deployment",time:"—",status:"Project Stopped"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 2",task:"Auth, RBAC, user/department management",time:"Oct 1–8",status:"Completed"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 2",task:"Task engine — lifecycle, comments, attachments, audit",time:"Oct 1–8",status:"Completed"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 2",task:"Task board, detail UI, filters",time:"Oct 1–8",status:"Completed"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 2",task:"Calendar",time:"Oct 1–8",status:"Completed"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 2",task:"Dashboard & Command Center",time:"Oct 1–8",status:"In Progress"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 3",task:"MoM & action-item → task conversion",time:"Oct 9–17",status:"In Progress"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 3",task:"Notifications (in-app & email)",time:"Oct 9–17",status:"In Progress"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 3",task:"Chat & support tickets",time:"Oct 9–17",status:"In Progress"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 3",task:"Reports & export",time:"Oct 9–17",status:"In Progress"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 4",task:"AI scoring, workload balancing, dependency engine",time:"Oct 18–20",status:"Pending"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 5",task:"WhatsApp bot integration",time:"Oct 21–27",status:"Pending"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 5",task:"Mobile PWA & offline support",time:"Oct 21–27",status:"Pending"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 5",task:"Gamification",time:"Oct 21–27",status:"Pending"},
+  {person:"Koventhan",cat:"Task Mgmt – Phase 5",task:"Security & compliance (SSO, audit reports)",time:"Oct 21–27",status:"Pending"},
+
+  // ---------- KARTHI : BDE / Automation ----------
+  {person:"Karthi",cat:"BDE Dashboard",task:"Lead & Deal Integration into BDE Dashboard — unified Task/Lead/Deal reporting",time:"1–2 Days",status:"In Progress"},
+  {person:"Karthi",cat:"BDE Dashboard",task:"KPI & Filters — BDE-wise KPIs, Sub Owner performance, filters",time:"1 Day",status:"In Progress"},
+  {person:"Karthi",cat:"Automation",task:"BDE Sub Owner Automation — prevent reassignment of same lead",time:"1–2 Days",status:"Not Started"},
+  {person:"Karthi",cat:"Automation",task:"CRM Automation — Sub Owner assignment validation & duplicate prevention",time:"1–2 Days",status:"Not Started"},
+  {person:"Karthi",cat:"Task Emails",task:"Marketing Task — timer with Start/Pause(mandatory remarks)/Complete",time:"1 Day",status:"Completed"},
+  {person:"Karthi",cat:"Task Emails",task:"Business Development Task — Sub Owner assignment + email triggers",time:"1 Day",status:"Completed"},
+  {person:"Karthi",cat:"Task Emails",task:"Requirement Task — Sub Owner assignment + email triggers",time:"1 Day",status:"Completed"},
+  {person:"Karthi",cat:"Task Emails",task:"CS Task — Sub Owner assignment + email triggers",time:"1 Day",status:"Completed"},
+
+  // ---------- SAROJINI : Task Management ----------
+  {person:"Sarojini",cat:"Task Mgmt – Phase 2",task:"Auth, RBAC, user/department management",time:"Oct 1–8",status:"Completed"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 2",task:"Task engine — lifecycle, comments, attachments, audit",time:"Oct 1–8",status:"Completed"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 2",task:"Task board, detail UI, filters",time:"Oct 1–8",status:"Completed"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 2",task:"Calendar",time:"Oct 1–8",status:"Completed"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 2",task:"Dashboard & Command Center",time:"Oct 1–8",status:"In Progress"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 3",task:"MoM & action-item → task conversion",time:"Oct 9–17",status:"In Progress"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 3",task:"Notifications (in-app & email)",time:"Oct 9–17",status:"In Progress"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 3",task:"Chat & support tickets",time:"Oct 9–17",status:"In Progress"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 3",task:"Reports & export",time:"Oct 9–17",status:"In Progress"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 4",task:"AI scoring, workload balancing, dependency engine",time:"Oct 18–20",status:"Pending"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 5",task:"WhatsApp bot integration",time:"Oct 21–27",status:"Pending"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 5",task:"Mobile PWA & offline support",time:"Oct 21–27",status:"Pending"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 5",task:"Gamification",time:"Oct 21–27",status:"Pending"},
+  {person:"Sarojini",cat:"Task Mgmt – Phase 5",task:"Security & compliance (SSO, audit reports)",time:"Oct 21–27",status:"Pending"},
+];
+
+const PEOPLE = ["All","Mathew","Koventhan","Karthi","Sarojini"];
+const ROLES = {Mathew:"IT & Security",Koventhan:"CRM Development",Karthi:"BDE / Automation",Sarojini:"Task Management"};
+const ST_CLASS = {"Completed":"s-done","In Progress":"s-prog","Pending":"s-pend",
+                  "Not Started":"s-pend","Project Stopped":"s-stop"};
+let activePerson = "All";
+
+// Chips
+const chipsEl = document.getElementById('chips');
+PEOPLE.forEach(p=>{
+  const b=document.createElement('button');
+  b.className='chip'+(p==='All'?' active':'');
+  b.textContent=p;
+  b.onclick=()=>{activePerson=p;
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    b.classList.add('active');render(document.querySelector('.search').value);};
+  chipsEl.appendChild(b);
+});
+
+// Person summary cards
+function renderCards(){
+  const wrap=document.getElementById('people');
+  wrap.innerHTML='';
+  PEOPLE.slice(1).forEach(p=>{
+    const mine=TASKS.filter(t=>t.person===p);
+    const done=mine.filter(t=>t.status==='Completed').length;
+    const prog=mine.filter(t=>t.status==='In Progress').length;
+    const pend=mine.filter(t=>t.status==='Pending'||t.status==='Not Started').length;
+    const stop=mine.filter(t=>t.status==='Project Stopped').length;
+    wrap.innerHTML+=`<div class="pcard">
+      <h4>${p}</h4><div class="role">${ROLES[p]} · ${mine.length} tasks</div>
+      <div class="counts">
+        <span class="cnt c-done">✔ ${done} Done</span>
+        <span class="cnt c-prog">▶ ${prog} Progress</span>
+        <span class="cnt c-pend">◌ ${pend} Pending</span>
+        ${stop?`<span class="cnt c-stop">✖ ${stop} Stopped</span>`:''}
+      </div></div>`;
+  });
+}
+
+// Table
+function render(q=''){
+  q=q.toLowerCase();
+  const rows=TASKS.filter(t=>
+    (activePerson==='All'||t.person===activePerson) &&
+    (t.task.toLowerCase().includes(q)||t.person.toLowerCase().includes(q)||
+     t.status.toLowerCase().includes(q)||t.cat.toLowerCase().includes(q)));
+  document.getElementById('tbody').innerHTML = rows.map(t=>`<tr>
+    <td><span class="person-tag p-${t.person.toLowerCase()}">${t.person}</span></td>
+    <td><b>${t.task}</b><br><span style="color:var(--muted);font-size:11px">${t.cat}</span></td>
+    <td>${t.cat}</td>
+    <td style="white-space:nowrap">${t.time}</td>
+    <td><span class="status ${ST_CLASS[t.status]}">${t.status}</span></td>
+  </tr>`).join('');
+  document.getElementById('totalBadge').textContent = rows.length + ' task' + (rows.length!==1?'s':'');
+}
+
+renderCards();render();
+document.querySelectorAll('.sidebar a').forEach(a=>
+  a.addEventListener('click',()=>document.querySelector('.sidebar').classList.remove('open')));
+</script>
+</body>
+</html>
